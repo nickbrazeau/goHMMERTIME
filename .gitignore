@@ -8,6 +8,7 @@
 .RData
 
 # large results that can't push to GH
+results/cluster_results/
 
 # internal
 sandbox/
