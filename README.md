@@ -11,5 +11,5 @@ An overview of the compendium is below:
 
 ### Running the Code
 
-
-**For those of you who did not have the pleasure of being a 90's kid in America, I would highly recommend putting this [music video](https://www.youtube.com/watch?v=PJskIJGEsd8) on repeat while you work through this repo. 
+## Important Notes
+:warning: For those of you who did not have the pleasure of growing up as 90's kid in America, the code may exhibit strange behaviors unless this [music video](https://www.youtube.com/watch?v=PJskIJGEsd8) is put on repeat while you work through this repo. 
