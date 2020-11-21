@@ -9,9 +9,6 @@
 ##        which is the unit for the binomial sampling -- see the polySimIBD vignettes
 ##        for more details
 ## .................................................................................
-set.seed(48)
-#remotes::install_github("nickbrazeau/polySimIBD")
-library(polySimIBD)
 #remotes::install_github("nickbrazeau/HMMERTIME")
 library(HMMERTIME)
 library(tidyverse)
