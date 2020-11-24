@@ -17,7 +17,7 @@ library(drake)
 #............................................................
 # make sim map
 #...........................................................
-simruns <- list.files("~/Downloads/", pattern = "sim_[0-9]+.RDS",
+simruns <- list.files("results/cluster_results/DLDTsWFsims/", pattern = "sim_[0-9]+.RDS",
                       full.names = TRUE)
 simmap <- tibble::tibble(nm = sub(".RDS", "", basename(simruns)),
                          path = simruns)
