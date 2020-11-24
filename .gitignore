@@ -14,6 +14,7 @@ results/cluster_results/
 sandbox/
 figures/
 tables/
+vcfdata/
 
 # Data files I'm generating
 .drake
