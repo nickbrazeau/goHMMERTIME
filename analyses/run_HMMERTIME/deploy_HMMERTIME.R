@@ -25,6 +25,8 @@ simmap <- tibble::tibble(nm = sub(".RDS", "", basename(simruns)),
 #............................................................
 # HMMERTIME run function
 #...........................................................
+dir.create("/pine/scr/n/f/nfb/Projects/goHMMERTIME/run_HMMERTIME/",
+           recursive = TRUE)
 run_HMMERTIME <- function(path) {
   simret <- readRDS(path)
 
