@@ -1,0 +1,128 @@
+---
+title: "Untitled"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = T, warning = F, message = F, eval = T, results = 'hide',
+                      fig.align = 'center', fig.width = 8, fig.height = 8)
+knitr::opts_knit$set(root.dir = here::here())
+```
+```{r}
+plot_theme <- theme(plot.title = element_text(family = "Helvetica", face = "bold", hjust = 0.5, size = 14),
+                    axis.title = element_text(family = "Helvetica", face = "bold", hjust = 0.5, size = 12),
+                    axis.text.y = element_text(family = "Helvetica", hjust = 0.5, size = 11),
+                    axis.text.x = element_text(family = "Helvetica", hjust = 0.5, size = 11, angle = 90),
+                    legend.position = "right",
+                    legend.title = element_text(family = "Helvetica", face = "bold", vjust = 0.85, size = 12),
+                    legend.text = element_text(family = "Helvetica", hjust = 0.5, vjust = 0.5, size = 10),
+                    axis.line = element_line(color = "#000000", size = 1))
+```
+
+# Overview 
+From the discete-loci discrete-time scructured Wright-Fisher model for _P. falciparum_ genetics, I ran 10 iterations for "base" simulations (`migration = 0` and/or `COI = 1` in all mosquito guts [resulting in limited recombination]) and 100 iterations for "interesting" simulations. Simulations are essentially identical to those used in Verity, Aydemir, Brazeau _et al._ 2020, where the migration paramter M can be: _0, 0.25, 0.5, or 1_ and deme size is  from (N) on a logarithmic-base 10 scale: _10, 16, 25, 40, 63, 100, 158, 251, 398, 631, 1000_.
+
+
+
+```{r}
+#......................
+# imports
+#......................
+library(tidyverse)
+library(HMMERTIME)
+```
+```{r}
+#......................
+# read in
+#......................
+hmmret <- readRDS("results/tidied_results/hmmertime_results_from_dtdlswfsims.RDS")
+#......................
+# factorize for plotting
+#......................
+coilvls <- sort(unique(hmmret$mean_coi))
+hmmret <- hmmret %>% 
+  dplyr::mutate(mean_coi_fact = factor(mean_coi, 
+                                       levels = coilvls,
+                                       labels = c("Mean COI: 1", "Mean COI: 2", "Mean COI: 3")),
+                m_fact = factor(m, 
+                                levels = c("0", "0.25", "0.5", "1"),
+                                labels = c("Migr: 0", "Migr: 0.25", "Migr: 0.5", "Migr: 1")),
+                logN = log10(N)) 
+
+#......................
+# put in tidy format for easier plotting
+#......................
+hmmret <- hmmret %>% 
+  dplyr::mutate(true_coi = purrr::map(trueIBD, "eff_coi"),
+                true_coi1 = purrr::map_dbl(true_coi, function(x) as.numeric( stringr::str_split(x, " ", n = 2)[[1]] )),
+                true_coi2 = purrr::map_dbl(true_coi, function(x) as.numeric( stringr::str_split(x, " ", n = 2)[[2]] )),
+                pairwiseIBD = purrr::map_dbl(trueIBD, "pairwiseIBD", ),
+                effpairwiseIBD = purrr::map_dbl(trueIBD, "effpairwiseIBD"),
+                withinIBD_smpl1 = purrr::map_dbl(trueIBD, "withinIBD_smpl1"),
+                withinIBD_smpl2 = purrr::map_dbl(trueIBD, "withinIBD_smpl2"),
+                hmmertimequantdf = purrr::map(hmmertimequants, function(x){
+                  ret <- as.data.frame(x)
+                  colnames(ret) <- paste0("Q", colnames(ret))
+                  colnames(ret) <- sub("%", "", colnames(ret))
+                  ret$param <- rownames(ret)
+                  return(ret)
+                })) %>% 
+  tidyr::unnest(cols = "hmmertimequantdf")
+```
+
+## Compare COIs
+```{r, results = 'asis'}
+COI1plotObj <- hmmret %>% 
+  dplyr::filter(param == "m1") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi1, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = logN), alpha = 0.5) +
+  scale_color_viridis_c("Log Ne") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi1, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of First Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+
+COI2plotObj <- hmmret %>% 
+  dplyr::filter(param == "m2") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi2, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = logN), alpha = 0.5) +
+  scale_color_viridis_c("Log Ne") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi2, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of Second Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+cowplot::plot_grid(COI1plotObj, COI2plotObj, nrow = 1, align = "h")
+
+
+```
+
+
+## Compare IBD Measures
+
+```{r, results = 'asis'}
+btwnIBDplotObj <- hmmret %>% 
+  dplyr::filter(param == "f_ind") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = pairwiseIBD, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = logN), alpha = 0.5) +
+  scale_color_viridis_c("Log Ne") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
+  ggtitle("Between Sample IBD") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+```
