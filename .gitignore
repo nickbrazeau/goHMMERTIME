@@ -9,6 +9,9 @@
 
 # large results that can't push to GH
 results/cluster_results/
+results/old_cluster_results/
+results/tidied_results/
+
 
 # internal
 sandbox/

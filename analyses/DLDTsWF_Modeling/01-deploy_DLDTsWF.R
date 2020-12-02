@@ -105,13 +105,7 @@ get_truth_from_pairwise_arg <- function(arg, this_coi){
     smpl2con <- conni[(this_coi[1]+1):(cumsum(this_coi)[2])]
 
     #......................
-    # get strictly between
-    # i.e. ignoring internal IBD connections
-    #......................
-    eff_pairwiseIBD <- sum(smpl2con %in% 0:(this_coi[1]-1) )
-
-    #......................
-    # get true IBD
+    # get IBD
     #......................
     # connections between 1 and 2
     pwconn <- which(smpl2con %in% 0:(this_coi[1]-1) )
@@ -136,11 +130,17 @@ get_truth_from_pairwise_arg <- function(arg, this_coi){
         }
       }
     }
+    #......................
+    # calculating within sample IBD as the number of strains within a host that are identical
+    # this means there are COI - 1 strains that can be identical
+    # this arises in two scenarios in bvtrees (always point left):
+    #       (1) samples coalesce within the same host at some T
+    #       (2) samples coalesce to the same strain in a different host at different time Ts
+    #......................
     # within sample1 is easy since we start at 0
-    withinIBD_smpl1 <<- sum(smpl1con %in% (1:this_coi[1]-1))
+    withinIBD_smpl1 <- sum(smpl1con %in% (1:this_coi[1]-1)) + sum(duplicated(smpl1con[smpl1con != -1]))
     # within sample2 adjust slightly for "offset"
-    withinIBD_smpl2 <- sum(smpl2con %in%
-                             this_coi[1]:(length(conni)-1))
+    withinIBD_smpl2 <- sum(smpl2con %in% this_coi[1]:(length(conni)-1)) + sum(duplicated(smpl2con[smpl2con != -1]))
 
     # return
     out <- list(pairwiseIBD = sum(locimatches),
@@ -154,14 +154,18 @@ get_truth_from_pairwise_arg <- function(arg, this_coi){
                            .f = get_pairwise_ibd, this_coi = this_coi)
 
   #......................
-  # true between
+  # IBD between
+  # If between IBD exceed the minimum COI, then
+  # cap at minimum COI (i.e. the between amount of IBD cannot be greater than the
+  # number of strains that are within the smallest host COI)
   #......................
-  pairwiseIBD <- sum(purrr::map_dbl(numerator, "pairwiseIBD"))/(min(this_coi) * length(conn)) # min combn * num Loci
+  pairwiseIBDvec <- purrr::map_dbl(numerator, "pairwiseIBD")
+  pairwiseIBDvec <- ifelse(pairwiseIBDvec > min(this_coi), min(this_coi), pairwiseIBDvec)
+  pairwiseIBD <- sum(pairwiseIBDvec)/(min(this_coi) * length(conn)) # min combn * num Loci
 
   #......................
   # within
   #......................
-
   # -1 here for the SELF comparison
   withinIBD_smpl1 <- sum(purrr::map_dbl(numerator, "withinIBD_smpl1")) / ((this_coi[1]-1) * length(conn))
   withinIBD_smpl2 <- sum(purrr::map_dbl(numerator, "withinIBD_smpl2")) / ((this_coi[2]-1) * length(conn))
@@ -191,14 +195,9 @@ get_truth_from_pairwise_arg <- function(arg, this_coi){
   effcoi1 <- get_effective_coi(arg = arg, hostcoi_index = 1:this_coi[1])
   effcoi2 <- get_effective_coi(arg = arg, hostcoi_index = (this_coi[1]+1):sum(this_coi))
   eff_coi <- c(effcoi1, effcoi2)
-  # now calculate effective IBD between
-  effpairwiseIBD <- sum(purrr::map_dbl(numerator, "eff_pairwiseIBD"))/(min(eff_coi) * length(conn)) # min combn * num Loci
-
-
 
   # return
   ret <- list(pairwiseIBD = pairwiseIBD,
-              effpairwiseIBD = effpairwiseIBD,
               eff_coi = eff_coi,
               withinIBD_smpl1 = withinIBD_smpl1,
               withinIBD_smpl2 = withinIBD_smpl2)
