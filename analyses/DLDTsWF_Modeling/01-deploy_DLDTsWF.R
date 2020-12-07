@@ -113,7 +113,7 @@ get_truth_from_pairwise_arg <- function(arg, this_coi){
     # note we are 0 based in connections
     # note bvtrees always point left
     # catch if there are multiple matches within sample 2 to the pairwise
-    # this is a coalescent true that looks like below if host COI is 2,2
+    # this is a coalescent tree that looks like below if host COI is 2,2
     # c: -1 -1 1 2
     # t: -1 -1 5 1
     if (length(pwconn) != 0) {
