@@ -1,23 +1,38 @@
 ---
-title: "Untitled"
-output: html_document
+title: "HMMERTIME Results from DLDTsWF Simulations"
+author: "Nick Brazeau"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    highlight: textmate
+    toc: yes
+    toc_float: yes
+    toc_depth: 3
+    code_folding: hide
 editor_options: 
   chunk_output_type: console
 ---
 
 ```{r, include=FALSE}
 knitr::opts_chunk$set(echo = T, warning = F, message = F, eval = T, results = 'hide',
-                      fig.align = 'center', fig.width = 8, fig.height = 8)
+                      fig.align = 'center', fig.width = 11, fig.height = 8)
 knitr::opts_knit$set(root.dir = here::here())
 ```
-```{r}
-plot_theme <- theme(plot.title = element_text(family = "Helvetica", face = "bold", hjust = 0.5, size = 14),
-                    axis.title = element_text(family = "Helvetica", face = "bold", hjust = 0.5, size = 12),
-                    axis.text.y = element_text(family = "Helvetica", hjust = 0.5, size = 11),
-                    axis.text.x = element_text(family = "Helvetica", hjust = 0.5, size = 11, angle = 90),
+```{r, include=FALSE}
+#......................
+# imports
+#......................
+library(tidyverse)
+library(HMMERTIME)
+```
+```{r, include=FALSE}
+plot_theme <- theme(plot.title = element_text(family = "Arial", face = "bold", hjust = 0.5, size = 14),
+                    axis.title = element_text(family = "Arial", face = "bold", hjust = 0.5, size = 12),
+                    axis.text.y = element_text(family = "Arial", hjust = 0.5, size = 11),
+                    axis.text.x = element_text(family = "Arial", hjust = 0.5, size = 11, angle = 90),
                     legend.position = "right",
-                    legend.title = element_text(family = "Helvetica", face = "bold", vjust = 0.85, size = 12),
-                    legend.text = element_text(family = "Helvetica", hjust = 0.5, vjust = 0.5, size = 10),
+                    legend.title = element_text(family = "Arial", face = "bold", vjust = 0.85, size = 12),
+                    legend.text = element_text(family = "Arial", hjust = 0.5, vjust = 0.5, size = 10),
                     axis.line = element_line(color = "#000000", size = 1))
 ```
 
@@ -26,13 +41,7 @@ From the discete-loci discrete-time scructured Wright-Fisher model for _P. falci
 
 
 
-```{r}
-#......................
-# imports
-#......................
-library(tidyverse)
-library(HMMERTIME)
-```
+
 ```{r}
 #......................
 # read in
@@ -59,7 +68,6 @@ hmmret <- hmmret %>%
                 true_coi1 = purrr::map_dbl(true_coi, function(x) as.numeric( stringr::str_split(x, " ", n = 2)[[1]] )),
                 true_coi2 = purrr::map_dbl(true_coi, function(x) as.numeric( stringr::str_split(x, " ", n = 2)[[2]] )),
                 pairwiseIBD = purrr::map_dbl(trueIBD, "pairwiseIBD", ),
-                effpairwiseIBD = purrr::map_dbl(trueIBD, "effpairwiseIBD"),
                 withinIBD_smpl1 = purrr::map_dbl(trueIBD, "withinIBD_smpl1"),
                 withinIBD_smpl2 = purrr::map_dbl(trueIBD, "withinIBD_smpl2"),
                 hmmertimequantdf = purrr::map(hmmertimequants, function(x){
@@ -73,12 +81,15 @@ hmmret <- hmmret %>%
 ```
 
 ## Compare COIs
+
+### Effects of Population Size
+
 ```{r, results = 'asis'}
 COI1plotObj <- hmmret %>% 
   dplyr::filter(param == "m1") %>% 
   ggplot() + 
   geom_pointrange(aes(x = true_coi1, y = Q50, ymin = Q2.5, ymax = Q97.5, 
-                      color = logN), alpha = 0.5) +
+                      color = logN), alpha = 0.25) +
   scale_color_viridis_c("Log Ne") +
   geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
   geom_smooth(aes(x = true_coi1, y = Q50), method = "lm", color = "#B22234") + 
@@ -93,7 +104,45 @@ COI2plotObj <- hmmret %>%
   dplyr::filter(param == "m2") %>% 
   ggplot() + 
   geom_pointrange(aes(x = true_coi2, y = Q50, ymin = Q2.5, ymax = Q97.5, 
-                      color = logN), alpha = 0.5) +
+                      color = logN), alpha = 0.25) +
+  scale_color_viridis_c("Log Ne") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi2, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of Second Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+cowplot::plot_grid(COI1plotObj, COI2plotObj, nrow = 1, align = "h")
+
+
+```
+
+#### Considering Only "Interesting" Sims
+```{r, results = 'asis', fig.width = 11, fig.height = 7}
+COI1plotObj <- hmmret %>% 
+  dplyr::filter(param == "m1") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi1, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = logN), alpha = 0.25) +
+  scale_color_viridis_c("Log Ne") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi1, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of First Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+
+COI2plotObj <- hmmret %>% 
+  dplyr::filter(param == "m2") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi2, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = logN), alpha = 0.25) +
   scale_color_viridis_c("Log Ne") +
   geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
   geom_smooth(aes(x = true_coi2, y = Q50), method = "lm", color = "#B22234") + 
@@ -109,8 +158,87 @@ cowplot::plot_grid(COI1plotObj, COI2plotObj, nrow = 1, align = "h")
 ```
 
 
-## Compare IBD Measures
 
+
+
+### Effects of Within-Sapmle IBD
+
+```{r, results = 'asis'}
+COI1plotObj <- hmmret %>% 
+  dplyr::filter(param == "m1") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi1, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl1), alpha = 0.25) +
+  scale_color_viridis_c("Within-Sample \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi1, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of First Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+
+COI2plotObj <- hmmret %>% 
+  dplyr::filter(param == "m2") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi2, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl2), alpha = 0.25) +
+  scale_color_viridis_c("Within-Sample \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi2, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of Second Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+cowplot::plot_grid(COI1plotObj, COI2plotObj, nrow = 1, align = "h")
+
+
+```
+
+
+#### Considering Only "Interesting" Sims
+```{r, results = 'asis', fig.width = 11, fig.height = 7}
+COI1plotObj <- hmmret %>% 
+  dplyr::filter(param == "m1") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi1, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl1), alpha = 0.25) +
+  scale_color_viridis_c("Within-Sample \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi1, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of First Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+
+COI2plotObj <- hmmret %>% 
+  dplyr::filter(param == "m2") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = true_coi2, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl2), alpha = 0.25) +
+  scale_color_viridis_c("Within-Sample \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = true_coi2, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred COI") + xlab("True COI") +
+  ggtitle("COI of Second Sample") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+cowplot::plot_grid(COI1plotObj, COI2plotObj, nrow = 1, align = "h")
+
+```
+
+
+## Compare IBD Measures
+### Effects of Population Size
 ```{r, results = 'asis'}
 btwnIBDplotObj <- hmmret %>% 
   dplyr::filter(param == "f_ind") %>% 
@@ -125,4 +253,113 @@ btwnIBDplotObj <- hmmret %>%
   ggtitle("Between Sample IBD") + 
   labs(caption = "Expected is in Blue; Red is slope of inferred") +
   plot_theme 
+
+plot(btwnIBDplotObj)
+
+```
+
+#### Considering Only "Interesting" Sims
+```{r, results = 'asis', fig.width = 11, fig.height = 7}
+btwnIBDplotObj <- hmmret %>% 
+  dplyr::filter(param == "f_ind") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = pairwiseIBD, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = logN), alpha = 0.5) +
+  scale_color_viridis_c("Log Ne") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
+  ggtitle("Between Sample IBD") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+```
+
+### Effects of Within-Sample IBD
+```{r, results = 'asis'}
+btwnIBDplotObj_smpl1 <- hmmret %>% 
+  dplyr::filter(param == "f_ind") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = pairwiseIBD, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl1), alpha = 0.5) +
+  scale_color_viridis_c("Within-Sample 1 \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
+  ggtitle("Between Sample IBD; Within Sample 1") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+btwnIBDplotObj_smpl2 <- hmmret %>% 
+  dplyr::filter(param == "f_ind") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = pairwiseIBD, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl2), alpha = 0.5) +
+  scale_color_viridis_c("Within-Sample 2 \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
+  ggtitle("Between Sample IBD; Within Sample 2") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+cowplot::plot_grid(btwnIBDplotObj_smpl1, btwnIBDplotObj_smpl2, nrow = 1)
+
+```
+
+#### Considering Only "Interesting" Sims
+```{r, results = 'asis', fig.width = 11, fig.height = 7}
+btwnIBDplotObj_smpl1 <- hmmret %>% 
+  dplyr::filter(param == "f_ind") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = pairwiseIBD, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl1), alpha = 0.5) +
+  scale_color_viridis_c("Within-Sample 1 \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
+  ggtitle("Between Sample IBD; Within Sample 1") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+btwnIBDplotObj_smpl2 <- hmmret %>% 
+  dplyr::filter(param == "f_ind") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = pairwiseIBD, y = Q50, ymin = Q2.5, ymax = Q97.5, 
+                      color = withinIBD_smpl2), alpha = 0.5) +
+  scale_color_viridis_c("Within-Sample 2 \n IBD") +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
+  ggtitle("Between Sample IBD; Within Sample 2") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+
+cowplot::plot_grid(btwnIBDplotObj_smpl1, btwnIBDplotObj_smpl2, nrow = 1)
+
+```
+
+#### plotly
+```{r, results = 'asis', fig.width = 11, fig.height = 7}
+plotObj <- hmmret %>% 
+  dplyr::filter(param == "f_ind") %>% 
+  dplyr::filter(lvl == "interest") %>% 
+  ggplot() + 
+  geom_pointrange(aes(x = pairwiseIBD, y = Q50, ymin = Q2.5, ymax = Q97.5, sim = simnum), alpha = 0.5) +
+  geom_abline(slope = 1, intercept = 0, color = "#3C3B6E") + 
+  geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
+  facet_grid(mean_coi_fact ~ m_fact) + 
+  ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
+  ggtitle("Between Sample IBD; Within Sample 1") + 
+  labs(caption = "Expected is in Blue; Red is slope of inferred") +
+  plot_theme 
+plotly::ggplotly(plotObj)
+
 ```
