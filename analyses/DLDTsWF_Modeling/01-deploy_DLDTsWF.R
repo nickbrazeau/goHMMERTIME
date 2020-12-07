@@ -87,123 +87,6 @@ dir.create("results/cluster_results/DLDTsWFsims/", recursive = TRUE)
 saveRDS(paramsdf,
         "results/cluster_results/DLDTsWFsims/param_map.RDS")
 
-#............................................................
-# Running the Simulation
-#...........................................................
-get_truth_from_pairwise_arg <- function(arg, this_coi){
-  # arg doesn't store host information so need to carry COI information
-  if (!length(this_coi) == 2) {
-    stop("must be a pairwise comparison")
-  }
-  # get connections
-  conn <- purrr::map(arg, "c")
-  # get timing of connections
-  tm <- purrr::map(arg, "t")
-  # find pairwise
-  get_pairwise_ibd <- function(conni, tmi, this_coi) {
-    smpl1con <- conni[1:this_coi[1]]
-    smpl2con <- conni[(this_coi[1]+1):(cumsum(this_coi)[2])]
-
-    #......................
-    # get IBD
-    #......................
-    # connections between 1 and 2
-    pwconn <- which(smpl2con %in% 0:(this_coi[1]-1) )
-    locimatches <- rep(1, length(pwconn))
-    # note we are 0 based in connections
-    # note bvtrees always point left
-    # catch if there are multiple matches within sample 2 to the pairwise
-    # this is a coalescent tree that looks like below if host COI is 2,2
-    # c: -1 -1 1 2
-    # t: -1 -1 5 1
-    if (length(pwconn) != 0) {
-      for (i in 1:length(pwconn)) {
-        haplotypeindex <- this_coi[1] + pwconn[i] - 1 # -1 for 0-based
-        internalconn <- which(smpl2con %in% haplotypeindex )
-        if (length(internalconn) != 0) {
-          for (i in 1:length(internalconn)) {
-            internalhaplotypeplace <- this_coi[1] + internalconn[i] # here 1-based in R
-            if (tmi[internalhaplotypeplace] < tmi[this_coi[1] + internalconn[i]]) { # here 1-based in R
-              locimatches[i] <- locimatches[i] + 1
-            }
-          }
-        }
-      }
-    }
-    #......................
-    # calculating within sample IBD as the number of strains within a host that are identical
-    # this means there are COI - 1 strains that can be identical
-    # this arises in two scenarios in bvtrees (always point left):
-    #       (1) samples coalesce within the same host at some T
-    #       (2) samples coalesce to the same strain in a different host at different time Ts
-    #......................
-    # within sample1 is easy since we start at 0
-    withinIBD_smpl1 <- sum(smpl1con %in% (1:this_coi[1]-1)) + sum(duplicated(smpl1con[smpl1con != -1]))
-    # within sample2 adjust slightly for "offset"
-    withinIBD_smpl2 <- sum(smpl2con %in% this_coi[1]:(length(conni)-1)) + sum(duplicated(smpl2con[smpl2con != -1]))
-
-    # return
-    out <- list(pairwiseIBD = sum(locimatches),
-                withinIBD_smpl1 = withinIBD_smpl1,
-                withinIBD_smpl2 = withinIBD_smpl2,
-                eff_pairwiseIBD = eff_pairwiseIBD)
-    return(out)
-  }
-  # calculate
-  numerator <- purrr::map2(.x = conn, .y = tm,
-                           .f = get_pairwise_ibd, this_coi = this_coi)
-
-  #......................
-  # IBD between
-  # If between IBD exceed the minimum COI, then
-  # cap at minimum COI (i.e. the between amount of IBD cannot be greater than the
-  # number of strains that are within the smallest host COI)
-  #......................
-  pairwiseIBDvec <- purrr::map_dbl(numerator, "pairwiseIBD")
-  pairwiseIBDvec <- ifelse(pairwiseIBDvec > min(this_coi), min(this_coi), pairwiseIBDvec)
-  pairwiseIBD <- sum(pairwiseIBDvec)/(min(this_coi) * length(conn)) # min combn * num Loci
-
-  #......................
-  # within
-  #......................
-  # -1 here for the SELF comparison
-  withinIBD_smpl1 <- sum(purrr::map_dbl(numerator, "withinIBD_smpl1")) / ((this_coi[1]-1) * length(conn))
-  withinIBD_smpl2 <- sum(purrr::map_dbl(numerator, "withinIBD_smpl2")) / ((this_coi[2]-1) * length(conn))
-
-  # catch when MOI = 1 and no within possible, so set to 0
-  withinIBD_smpl1 <- ifelse(is.nan(withinIBD_smpl1), 0, withinIBD_smpl1)
-  withinIBD_smpl2 <- ifelse(is.nan(withinIBD_smpl2), 0, withinIBD_smpl2)
-
-  #......................
-  # effective between
-  #......................
-  get_effective_coi <- function(arg, hostcoi_index) {
-    # get connections
-    conn <- purrr::map(arg, "c")
-    # get connections for this specific host
-    conn <- lapply(conn, function(x)return(x[hostcoi_index]))
-    conn <- unique(conn)
-    connmat <- matrix(NA, ncol = length(hostcoi_index), nrow = length(conn))
-    for (i in 1:nrow(connmat)) {
-      connmat[i,] <- conn[[i]]
-    }
-    # look to see if all loci are coalesced w/in and only w/in for each strain
-    clonecount <- apply(connmat, 2, function(x) {all(x %in% (hostcoi_index-1))})
-    return(length(hostcoi_index) - sum(clonecount))
-  }
-  # run
-  effcoi1 <- get_effective_coi(arg = arg, hostcoi_index = 1:this_coi[1])
-  effcoi2 <- get_effective_coi(arg = arg, hostcoi_index = (this_coi[1]+1):sum(this_coi))
-  eff_coi <- c(effcoi1, effcoi2)
-
-  # return
-  ret <- list(pairwiseIBD = pairwiseIBD,
-              eff_coi = eff_coi,
-              withinIBD_smpl1 = withinIBD_smpl1,
-              withinIBD_smpl2 = withinIBD_smpl2)
-  return(ret)
-}
-
 
 run_dldtswf <- function(N, mean_coi, m, lvl, pos, rho, tlim, hosts, simnum) {
 
@@ -227,14 +110,25 @@ run_dldtswf <- function(N, mean_coi, m, lvl, pos, rho, tlim, hosts, simnum) {
     hapmat <- polySimIBD::get_haplotype_matrix(ARG)
 
     #......................
-    # get True IBD
+    # get realized results
     #......................
-    trueIBD <- get_truth_from_pairwise_arg(arg = ARG, this_coi = this_coi)
+    pairwiseIBD <- polySimIBD::get_realized_pairwise_ibd(swf = swfsim, host_index = hosts)
+    wthnIBD1 <- polySimIBD::get_within_host_IBD(swf = swfsim, host_index = hosts[[1]])
+    wthnIBD2 <- polySimIBD::get_within_host_IBD(swf = swfsim, host_index = hosts[[2]])
+    effCOI1 <- polySimIBD::get_realized_coi(swf = swfsim, host_index = hosts[[1]])
+    effCOI2 <- polySimIBD::get_realized_coi(swf = swfsim, host_index = hosts[[2]])
+    # out
+    realized <- list(
+      pairwiseIBD = pairwiseIBD,
+      withinIBD_host1 = wthnIBD1,
+      withinIBD_host2 = wthnIBD2,
+      effCOI_host1 = effCOI1,
+      effCOI_host2 = effCOI2)
 
     #............................................................
     # catch interesting
     #...........................................................
-    if (lvl == "interest" & any(trueIBD$pairwiseIBD %in% c(0,1)) ) {
+    if (lvl == "interest" & any(pairwiseIBD %in% c(0,1)) ) {
       # if interesting, re-run until there is some between IBD
       make_btwness <- TRUE
     } else {
@@ -291,7 +185,7 @@ run_dldtswf <- function(N, mean_coi, m, lvl, pos, rho, tlim, hosts, simnum) {
   #......................
   # send out
   #......................
-  out <- list(trueIBD = trueIBD,
+  out <- list(realized = realized,
               ARG = ARG,
               swfsim = swfsim,
               hosts = hosts,
