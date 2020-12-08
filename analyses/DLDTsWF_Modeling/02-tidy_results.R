@@ -15,19 +15,19 @@ run_rets <- tibble::tibble(simnum = sub(".RDS", "", list.files("results/cluster_
                            paths = list.files("results/cluster_results/DLDTsWFsims/",
                                               pattern = "sim_[0-9]+.RDS", full.names = T))
 read_in_dldtswf_trueIBD <- function(path) {
-  ret <- readRDS(path)$trueIBD
+  ret <- readRDS(path)$realized
   return(ret)
 }
 # get trueIBD
 run_rets <- run_rets %>%
-  dplyr::mutate(trueIBD = purrr::map(paths, read_in_dldtswf_trueIBD))
+  dplyr::mutate(realized = purrr::map(paths, read_in_dldtswf_trueIBD))
 
 #......................
 # bring together and tidy up
 # dldtswf simulations
 #......................
 out <- dplyr::left_join(runmap, run_rets, by = "simnum") %>%
-  dplyr::select(c("N", "mean_coi", "m", "lvl", "simnum", "trueIBD"))
+  dplyr::select(c("N", "mean_coi", "m", "lvl", "simnum", "realized"))
 
 # save out
 saveRDS(out, "results/tidied_results/DLDTsWF_simulation_runs_trueIBD.RDS")

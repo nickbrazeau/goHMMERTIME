@@ -34,7 +34,7 @@ run_HMMERTIME <- function(path) {
   ret <- HMMERTIME::runMCMC(vcfRobj = simret$vcfRobj, # vcfR object we simulated
                             vcfploid = 2, # ploidy of VCF
                             PLAF = 1-simret$WSAF.list$rbetaPLAF,
-                            m_max = 10, # max COI to consider
+                            m_max = 15, # max COI to consider
                             rho = 7.4e-7, # recombination rate
                             k_max = 10, # max switch rate to consider
                             e1 = 0.05, # error for going from homozygous to heterozygous
