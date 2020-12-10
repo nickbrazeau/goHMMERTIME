@@ -36,7 +36,7 @@ run_HMMERTIME <- function(path) {
                             PLAF = 1-simret$WSAF.list$rbetaPLAF,
                             m_max = 15, # max COI to consider
                             rho = 7.4e-7, # recombination rate
-                            k_max = 15, # max switch rate to consider
+                            k_max = 25, # max switch rate to consider, NB it affect poisson of layering on ibd lvls
                             e1 = 0.05, # error for going from homozygous to heterozygous
                             e2 = 0.05, # error for going from heterozygous to homozygous
                             burnin = 1e4,

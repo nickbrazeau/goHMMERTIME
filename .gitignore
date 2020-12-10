@@ -27,6 +27,7 @@ vcfdata/
 /*_cache/
 /cache/
 *png
+*html
 
 # Temporary files created by R markdown
 *.utf8.md

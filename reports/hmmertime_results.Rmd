@@ -64,12 +64,13 @@ hmmret <- hmmret %>%
 # put in tidy format for easier plotting
 #......................
 hmmret <- hmmret %>% 
-  dplyr::mutate(true_coi = purrr::map(trueIBD, "eff_coi"),
-                true_coi1 = purrr::map_dbl(true_coi, function(x) as.numeric( stringr::str_split(x, " ", n = 2)[[1]] )),
-                true_coi2 = purrr::map_dbl(true_coi, function(x) as.numeric( stringr::str_split(x, " ", n = 2)[[2]] )),
-                pairwiseIBD = purrr::map_dbl(trueIBD, "pairwiseIBD", ),
-                withinIBD_smpl1 = purrr::map_dbl(trueIBD, "withinIBD_smpl1"),
-                withinIBD_smpl2 = purrr::map_dbl(trueIBD, "withinIBD_smpl2"),
+  dplyr::mutate(true_coi1 = purrr::map(realized, "effCOI_host1"),
+                true_coi1 = purrr::map_dbl(true_coi1, max),
+                true_coi2 = purrr::map(realized, "effCOI_host2"),
+                true_coi2 = purrr::map_dbl(true_coi2, max),
+                pairwiseIBD = purrr::map_dbl(realized, "pairwiseIBD"),
+                withinIBD_smpl1 = purrr::map_dbl(realized, "withinIBD_host1"),
+                withinIBD_smpl2 = purrr::map_dbl(realized, "withinIBD_host2"),
                 hmmertimequantdf = purrr::map(hmmertimequants, function(x){
                   ret <- as.data.frame(x)
                   colnames(ret) <- paste0("Q", colnames(ret))
@@ -357,7 +358,7 @@ plotObj <- hmmret %>%
   geom_smooth(aes(x = pairwiseIBD, y = Q50), method = "lm", color = "#B22234") + 
   facet_grid(mean_coi_fact ~ m_fact) + 
   ylab("Inferred Individal IBD") + xlab("True Individaul IBD") +
-  ggtitle("Between Sample IBD; Within Sample 1") + 
+  ggtitle("Between Sample IBD") + 
   labs(caption = "Expected is in Blue; Red is slope of inferred") +
   plot_theme 
 plotly::ggplotly(plotObj)
